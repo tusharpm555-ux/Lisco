@@ -1,0 +1,1236 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  ArrowRight, 
+  Layers, 
+  Code2, 
+  Zap, 
+  Menu,
+  X,
+  Globe,
+  Sparkles,
+  Search,
+  RefreshCw,
+  Briefcase,
+  Users,
+  Layout,
+  Monitor,
+  Check,
+  Send,
+  ChevronDown,
+  Lightbulb,
+  Palette,
+  Terminal,
+  Quote,
+  BarChart3,
+  Smartphone,
+  Trophy,
+  MousePointer2,
+  MessageSquare,
+  Cpu,
+  PenTool,
+  UserCircle,
+  Rocket,
+  Target,
+  Workflow,
+  Loader2,
+  BrainCircuit,
+  ClipboardCheck
+} from 'lucide-react';
+
+// --- Gemini API Configuration ---
+const apiKey = ""; // Provided at runtime
+const GEMINI_MODEL = "gemini-2.5-flash-preview-09-2025";
+
+const callGemini = async (prompt, systemInstruction = "") => {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+  
+  const payload = {
+    contents: [{ parts: [{ text: prompt }] }],
+    systemInstruction: { parts: [{ text: systemInstruction }] }
+  };
+
+  const maxRetries = 5;
+  let delay = 1000;
+
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) throw new Error('API request failed');
+      
+      const result = await response.json();
+      return result.candidates?.[0]?.content?.parts?.[0]?.text;
+    } catch (error) {
+      if (i === maxRetries - 1) throw error;
+      await new Error(new Promise(resolve => setTimeout(resolve, delay)));
+      delay *= 2;
+    }
+  }
+};
+
+// --- Data: Case Studies ---
+const caseStudies = [
+  {
+    id: 1,
+    client: "SIDF",
+    location: "Riyadh, Saudi Arabia",
+    title: "Digital Transformation for Industrial Funding",
+    category: "Enterprise • System Design",
+    color: "from-blue-900/40 to-blue-600/10",
+    icon: <Briefcase size={48} className="text-blue-400" />,
+    problem: "The industrial fund's application process was heavily manual, involving fragmented legacy systems that caused months of delay for applicants and internal operations.",
+    solution: "We designed a unified digital portal for applicants and a comprehensive internal dashboard for loan officers. We created a scalable design system compliant with government accessibility standards and built the frontend using React.",
+    outcome: "Reduced loan application processing time by 60%. Unified 14 disparate internal tools into one cohesive interface.",
+    impact: "Accelerated industrial growth funding across the region by digitizing the core lending engine."
+  },
+  {
+    id: 2,
+    client: "MediaStream",
+    location: "Global",
+    title: "Next-Gen OTT Viewing Experience",
+    category: "Consumer App • TV Interface",
+    color: "from-purple-900/40 to-pink-600/10",
+    icon: <Monitor size={48} className="text-purple-400" />,
+    problem: "User retention was dropping due to a clunky discovery experience and slow load times on low-end devices, especially on the Android TV platform.",
+    solution: "We reimagined the content discovery flow with a focus on 'lean-back' usability. We optimized the React Native for TV codebase, implementing virtualization for smooth scrolling and instant playback start.",
+    outcome: "35% increase in average watch time per session. App Store rating improved from 3.2 to 4.7 stars.",
+    impact: "Helped the platform secure Series B funding by demonstrating metric-moving UX improvements."
+  },
+  {
+    id: 3,
+    client: "FinPulse",
+    location: "Mumbai, India",
+    title: "Unified Design System for Fintech Scale",
+    category: "Design System • Mobile",
+    color: "from-green-900/40 to-emerald-600/10",
+    icon: <Smartphone size={48} className="text-green-400" />,
+    problem: "As the engineering team tripled, UI inconsistency became rampant. Shipping new features took too long due to repetitive coding of basic components.",
+    solution: "We audited the existing product, defined a new visual language (tokens, typography, spacing), and built a fully documented React component library (Storybook).",
+    outcome: "Feature development velocity increased by 2x. Design-to-dev handoff time reduced from days to hours.",
+    impact: "Enabled the team to launch two new product verticals in under a quarter using the shared system."
+  }
+];
+
+// --- Utility Components for Animations ---
+
+const FadeIn = ({ children, delay = 0, className = "", direction = "up" }) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.unobserve(entry.target);
+        }
+      },
+      { threshold: 0.1, rootMargin: "0px 0px -50px 0px" }
+    );
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const directionClasses = {
+    up: "translate-y-8",
+    down: "-translate-y-8",
+    left: "translate-x-8",
+    right: "-translate-x-8",
+    none: ""
+  };
+
+  return (
+    <div
+      ref={ref}
+      style={{ transitionDelay: `${delay}ms` }}
+      className={`transition-all duration-1000 cubic-bezier(0.17, 0.55, 0.55, 1) transform ${
+        isVisible 
+          ? 'opacity-100 translate-y-0 translate-x-0 blur-0' 
+          : `opacity-0 ${directionClasses[direction]} blur-sm`
+      } ${className}`}
+    >
+      {children}
+    </div>
+  );
+};
+
+const SpotlightCard = ({ children, className = "", spotColor = "rgba(255,255,255,0.15)", onClick }) => {
+  const divRef = useRef(null);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [opacity, setOpacity] = useState(0);
+
+  const handleMouseMove = (e) => {
+    if (!divRef.current) return;
+    const div = divRef.current;
+    const rect = div.getBoundingClientRect();
+    setPosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  };
+
+  const handleMouseEnter = () => setOpacity(1);
+  const handleMouseLeave = () => setOpacity(0);
+
+  return (
+    <div
+      ref={divRef}
+      onMouseMove={handleMouseMove}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onClick={onClick}
+      className={`relative overflow-hidden ${className}`}
+    >
+      <div
+        className="pointer-events-none absolute -inset-px transition duration-300 z-10"
+        style={{
+          opacity,
+          background: `radial-gradient(600px circle at ${position.x}px ${position.y}px, ${spotColor}, transparent 40%)`,
+        }}
+      />
+      <div className="relative z-20 h-full">{children}</div>
+    </div>
+  );
+};
+
+const ShinyButton = ({ children, className = "", icon: Icon, onClick, loading, disabled }) => (
+  <button 
+    onClick={onClick}
+    disabled={disabled || loading}
+    className={`group relative px-8 py-4 bg-white text-black font-semibold rounded-full overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
+  >
+    <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/80 to-transparent -translate-x-full group-hover:animate-shimmer" />
+    <span className="relative flex items-center justify-center gap-2 z-10">
+      {loading ? <Loader2 size={18} className="animate-spin" /> : null}
+      {children}
+      {Icon && !loading && <Icon size={18} className="transition-transform duration-300 group-hover:translate-x-1" />}
+    </span>
+  </button>
+);
+
+// 4. Case Study Modal Component
+const CaseStudyModal = ({ selectedCaseStudy, setSelectedCaseStudy, setIsFormOpen, setPrefillMessage }) => {
+  const [aiInsight, setAiInsight] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  useEffect(() => {
+    setAiInsight(""); // Reset when modal changes
+  }, [selectedCaseStudy]);
+
+  if (!selectedCaseStudy) return null;
+  const cs = selectedCaseStudy;
+
+  const generateInsight = async () => {
+    setIsGenerating(true);
+    try {
+      const prompt = `Based on this case study for ${cs.client}: "${cs.title}". The problem was: ${cs.problem}. Our solution: ${cs.solution}. Outcome: ${cs.outcome}. 
+      Explain in 3 concise bullet points specifically why LISCO's strategic design decisions were more effective than a traditional agency approach for this specific industry vertical. Keep it professional and persuasive.`;
+      const system = "You are a Senior Product Strategist at LISCO, a premium design partner. You specialize in explaining the 'Why' behind design systems and frontend engineering.";
+      const text = await callGemini(prompt, system);
+      setAiInsight(text);
+    } catch (e) {
+      setAiInsight("Failed to generate strategic insight. Please try again.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+      <div 
+        className="absolute inset-0 bg-black/80 backdrop-blur-md transition-opacity duration-300" 
+        onClick={() => setSelectedCaseStudy(null)}
+      />
+      <div className="relative w-full max-w-2xl bg-[#0A0A0A] border border-white/10 rounded-3xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
+        <div className={`h-48 w-full bg-gradient-to-br ${cs.color} relative p-8 flex flex-col justify-end`}>
+          <button 
+            onClick={() => setSelectedCaseStudy(null)} 
+            className="absolute top-6 right-6 p-2 rounded-full bg-black/20 hover:bg-black/40 text-white transition-colors backdrop-blur-md"
+          >
+            <X size={20} />
+          </button>
+          <div className="flex items-center gap-4">
+             <div className="p-3 bg-white/10 backdrop-blur-sm rounded-xl text-white">
+               {cs.icon}
+             </div>
+             <div>
+               <h2 className="text-3xl font-bold text-white mb-1">{cs.client}</h2>
+               <p className="text-white/60 text-sm">{cs.location} • {cs.category}</p>
+             </div>
+          </div>
+        </div>
+
+        <div className="p-8 space-y-8">
+          <div className="mb-6">
+             <h3 className="text-xl font-bold mb-2">{cs.title}</h3>
+             <p className="text-white/60 leading-relaxed">A deep dive into how we solved complex challenges.</p>
+          </div>
+
+          {/* AI Insight Section ✨ */}
+          <div className="p-6 rounded-2xl bg-purple-500/5 border border-purple-500/20 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-purple-400 font-bold text-sm uppercase tracking-wider">
+                <BrainCircuit size={18} /> Strategic AI Insight ✨
+              </div>
+              {!aiInsight && !isGenerating && (
+                <button 
+                  onClick={generateInsight}
+                  className="text-[10px] font-bold uppercase tracking-widest bg-purple-500 text-white px-3 py-1.5 rounded-full hover:bg-purple-400 transition-colors"
+                >
+                  Generate Insight
+                </button>
+              )}
+            </div>
+            
+            {isGenerating ? (
+              <div className="flex items-center gap-3 py-4">
+                <Loader2 className="animate-spin text-purple-400" size={18} />
+                <span className="text-sm text-purple-400/60 font-medium">Analyzing industry patterns...</span>
+              </div>
+            ) : aiInsight ? (
+              <div className="text-white/80 text-sm leading-relaxed whitespace-pre-line animate-in fade-in slide-in-from-top-1">
+                {aiInsight}
+              </div>
+            ) : (
+              <p className="text-white/40 text-xs italic">Click to generate a tailored strategic analysis of this project.</p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+             <div className="space-y-3">
+               <div className="flex items-center gap-2 text-red-400 font-bold text-sm uppercase tracking-wider">
+                 <Zap size={16} /> Problem
+               </div>
+               <p className="text-white/70 text-sm leading-relaxed">{cs.problem}</p>
+             </div>
+             
+             <div className="space-y-3">
+               <div className="flex items-center gap-2 text-blue-400 font-bold text-sm uppercase tracking-wider">
+                 <Layers size={16} /> Solution
+               </div>
+               <p className="text-white/70 text-sm leading-relaxed">{cs.solution}</p>
+             </div>
+          </div>
+
+          <div className="p-6 rounded-2xl bg-white/5 border border-white/5 space-y-6">
+             <div className="space-y-3">
+               <div className="flex items-center gap-2 text-green-400 font-bold text-sm uppercase tracking-wider">
+                 <BarChart3 size={16} /> Outcome
+               </div>
+               <p className="text-white/80 font-medium leading-relaxed">{cs.outcome}</p>
+             </div>
+             
+             <div className="w-full h-px bg-white/10" />
+             
+             <div className="space-y-3">
+               <div className="flex items-center gap-2 text-purple-400 font-bold text-sm uppercase tracking-wider">
+                 <Trophy size={16} /> Impact
+               </div>
+               <p className="text-white/70 text-sm leading-relaxed italic">"{cs.impact}"</p>
+             </div>
+          </div>
+          
+          <button 
+            onClick={() => { 
+              setPrefillMessage(`I'm interested in building something like the ${cs.client} project...`);
+              setSelectedCaseStudy(null); 
+              setIsFormOpen(true); 
+            }}
+            className="w-full py-4 rounded-xl bg-white text-black hover:bg-gray-200 font-bold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg shadow-white/5 hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <span>Start a project like this</span>
+            <ArrowRight size={18} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// 5. Contact Modal Component
+const ContactModal = ({ isFormOpen, setIsFormOpen, prefillMessage }) => {
+  const [details, setDetails] = useState(prefillMessage);
+  const [aiRoadmap, setAiRoadmap] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  useEffect(() => {
+    setDetails(prefillMessage);
+    setAiRoadmap("");
+  }, [prefillMessage, isFormOpen]);
+
+  const generateRoadmap = async () => {
+    if (!details || details.length < 10) return;
+    setIsGenerating(true);
+    try {
+      const prompt = `Project Details: ${details}. 
+      Based on LISCO's 3-step methodology (01 Foundation Sprint, 02 Build/Execution, 03 Scale), create a high-level draft roadmap for this client. 
+      For each step, give 1 specific sentence action item tailored to their project. Format clearly.`;
+      const system = "You are a Product Architect at LISCO. Your goal is to show potential clients that we have a clear, rapid execution path for their specific vision.";
+      const text = await callGemini(prompt, system);
+      setAiRoadmap(text);
+    } catch (e) {
+      setAiRoadmap("Could not generate roadmap. Please describe your project more clearly.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  if (!isFormOpen) return null;
+  
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+      <div 
+        className="absolute inset-0 bg-black/80 backdrop-blur-md transition-opacity duration-300" 
+        onClick={() => setIsFormOpen(false)}
+      />
+      <div className="relative w-full max-w-lg bg-[#0A0A0A] border border-white/10 rounded-3xl p-8 shadow-2xl animate-in fade-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
+        <button 
+          onClick={() => setIsFormOpen(false)} 
+          className="absolute top-6 right-6 text-white/40 hover:text-white transition-colors hover:rotate-90 duration-300"
+        >
+          <X size={24} />
+        </button>
+        
+        <div className="mb-6">
+          <h3 className="text-2xl font-bold mb-2">Book a Discovery Call</h3>
+          <p className="text-white/50 text-sm">Tell us about your project. We'll get back to you within 24 hours.</p>
+        </div>
+
+        <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-white/70 ml-1">Name</label>
+            <input 
+              type="text" 
+              placeholder="Jordan Smith"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/20 focus:outline-none focus:border-purple-500/50 focus:bg-white/10 transition-all focus:ring-1 focus:ring-purple-500/50"
+            />
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-white/70 ml-1">Email</label>
+              <input 
+                type="email" 
+                placeholder="jordan@company.com"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/20 focus:outline-none focus:border-purple-500/50 focus:bg-white/10 transition-all focus:ring-1 focus:ring-purple-500/50"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-white/70 ml-1">Project Details</label>
+            <textarea 
+              rows={3}
+              value={details}
+              onChange={(e) => setDetails(e.target.value)}
+              placeholder="Tell us about what you're building..."
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/20 focus:outline-none focus:border-purple-500/50 focus:bg-white/10 transition-all resize-none focus:ring-1 focus:ring-purple-500/50"
+            />
+            <div className="flex justify-end mt-1">
+              <button 
+                onClick={generateRoadmap}
+                disabled={!details || details.length < 10 || isGenerating}
+                className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-purple-400 hover:text-purple-300 disabled:opacity-30 transition-colors"
+              >
+                {isGenerating ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                Generate Draft Roadmap ✨
+              </button>
+            </div>
+          </div>
+
+          {/* AI Roadmap Display ✨ */}
+          {aiRoadmap && (
+            <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 animate-in slide-in-from-bottom-2 duration-500">
+               <div className="flex items-center gap-2 mb-2">
+                 <ClipboardCheck size={14} className="text-purple-400" />
+                 <span className="text-[10px] font-bold uppercase tracking-widest text-purple-400">Suggested Engagement Path ✨</span>
+               </div>
+               <div className="text-xs text-white/70 leading-relaxed whitespace-pre-line font-medium">
+                 {aiRoadmap}
+               </div>
+            </div>
+          )}
+
+          <button className="w-full bg-white text-black font-bold rounded-xl py-4 hover:bg-gray-200 transition-all duration-300 flex items-center justify-center gap-2 mt-2 hover:scale-[1.02] active:scale-[0.98]">
+            <span>Submit Inquiry</span>
+            <Send size={16} />
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+const App = () => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [activeSection, setActiveSection] = useState('');
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [selectedCaseStudy, setSelectedCaseStudy] = useState(null);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [prefillMessage, setPrefillMessage] = useState('');
+
+  // Define navigation items
+  const navItems = [
+    { label: 'Story', id: 'story' },
+    { label: 'Problem', id: 'problem' },
+    { label: 'Solution', id: 'solutions' },
+    { label: 'Work', id: 'work' },
+    { label: 'Team', id: 'team' }
+  ];
+
+  // Global mouse tracker for subtle hero parallax
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      setMousePos({ 
+        x: (e.clientX / window.innerWidth) * 20 - 10, 
+        y: (e.clientY / window.innerHeight) * 20 - 10 
+      });
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
+  // Scroll handler
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+      const sectionsToTrack = navItems.map(item => item.id);
+      const current = sectionsToTrack.find(section => {
+        const element = document.getElementById(section);
+        if (element) {
+          const rect = element.getBoundingClientRect();
+          return rect.top >= 0 && rect.top <= 400;
+        }
+        return false;
+      });
+      if (current) setActiveSection(current);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-purple-500/30 selection:text-purple-200 overflow-x-hidden">
+      <style>{`
+        @keyframes shimmer {
+          100% { transform: translateX(100%); }
+        }
+        .animate-shimmer {
+          animation: shimmer 1.5s infinite;
+        }
+        .animate-marquee {
+          animation: marquee 30s linear infinite;
+        }
+        @keyframes marquee {
+          from { transform: translateX(0); }
+          to { transform: translateX(-50%); }
+        }
+        .bg-grid-pattern {
+          background-image: linear-gradient(to right, #ffffff05 1px, transparent 1px),
+                          linear-gradient(to bottom, #ffffff05 1px, transparent 1px);
+          background-size: 40px 40px;
+        }
+        .text-glow {
+          text-shadow: 0 0 40px rgba(255,255,255,0.3);
+        }
+        .hero-blob {
+          transition: transform 0.2s cubic-bezier(0.17, 0.55, 0.55, 1);
+        }
+      `}</style>
+
+      {/* Overlays */}
+      <ContactModal 
+        isFormOpen={isFormOpen} 
+        setIsFormOpen={setIsFormOpen} 
+        prefillMessage={prefillMessage} 
+      />
+      <CaseStudyModal 
+        selectedCaseStudy={selectedCaseStudy} 
+        setSelectedCaseStudy={setSelectedCaseStudy} 
+        setIsFormOpen={setIsFormOpen}
+        setPrefillMessage={setPrefillMessage}
+      />
+
+      {/* Mobile Menu Overlay */}
+      {isMenuOpen && (
+        <div className="fixed inset-0 z-[60] bg-[#0A0A0A] flex flex-col items-center justify-center p-6 space-y-8 animate-in fade-in slide-in-from-top-4 duration-300 md:hidden">
+          <button onClick={() => setIsMenuOpen(false)} className="absolute top-8 right-8 text-white/60">
+            <X size={32} />
+          </button>
+          {navItems.map((item) => (
+            <a 
+              key={item.id} 
+              href={`#${item.id}`} 
+              onClick={() => setIsMenuOpen(false)}
+              className="text-4xl font-bold tracking-tight hover:text-purple-400 transition-colors"
+            >
+              {item.label}
+            </a>
+          ))}
+          <button 
+            onClick={() => { setIsMenuOpen(false); setIsFormOpen(true); }}
+            className="mt-8 px-8 py-4 bg-white text-black rounded-full font-bold text-lg"
+          >
+            Discovery Call
+          </button>
+        </div>
+      )}
+
+      {/* Dynamic Background with Mouse Follow */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <div 
+          className="hero-blob absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-purple-900/20 rounded-full blur-[120px] mix-blend-screen" 
+          style={{ transform: `translate(${mousePos.x * 2}px, ${mousePos.y * 2}px)` }}
+        />
+        <div 
+          className="hero-blob absolute bottom-[-20%] right-[-10%] w-[40%] h-[40%] bg-blue-900/10 rounded-full blur-[120px] mix-blend-screen"
+          style={{ transform: `translate(${-mousePos.x * 2}px, ${-mousePos.y * 2}px)` }}
+        />
+        <div className="absolute inset-0 bg-grid-pattern [mask-image:linear-gradient(to_bottom,white,transparent)]" />
+      </div>
+
+      {/* Navigation */}
+      <nav className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-5xl transition-all duration-500 ${scrolled ? 'top-4' : 'top-6'}`}>
+        <div className="bg-[#0A0A0A]/80 backdrop-blur-xl border border-white/10 rounded-full px-4 sm:px-6 py-3 flex items-center justify-between shadow-2xl shadow-black/50 transition-all duration-300 hover:border-white/20">
+          <div className="flex items-center gap-3 group cursor-pointer">
+            <div className="w-10 h-10 bg-gradient-to-br from-white to-gray-400 rounded-full flex items-center justify-center shadow-lg shadow-white/10 shrink-0 transition-transform duration-500 group-hover:rotate-180">
+              <div className="w-4 h-4 bg-[#0A0A0A] rounded-sm rotate-45" />
+            </div>
+            <div className="flex flex-col justify-center">
+              <span className="font-bold text-xl tracking-tight leading-none text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-gray-400 transition-colors">LISCO</span>
+              <span className="text-[0.55rem] font-medium tracking-widest text-white/50 uppercase leading-none mt-1 hidden sm:block group-hover:text-white/80 transition-colors">
+                Product × Engineering Partner
+              </span>
+            </div>
+          </div>
+
+          <div className="hidden md:flex items-center bg-white/5 rounded-full p-1 border border-white/5 backdrop-blur-sm">
+            {navItems.map((item) => (
+              <a 
+                key={item.id} 
+                href={`#${item.id}`}
+                className={`relative px-5 py-2 rounded-full text-xs font-medium transition-all duration-300 z-10 ${
+                  activeSection === item.id 
+                    ? 'text-white' 
+                    : 'text-white/60 hover:text-white'
+                }`}
+              >
+                {activeSection === item.id && (
+                  <span className="absolute inset-0 bg-white/10 rounded-full -z-10 animate-fade-in" />
+                )}
+                {item.label}
+              </a>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => { setPrefillMessage(''); setIsFormOpen(true); }}
+              className="bg-white text-black px-5 py-2.5 rounded-full text-xs font-bold hover:bg-gray-200 transition-all duration-300 shadow-lg shadow-white/5 hover:scale-105 active:scale-95"
+            >
+              Discovery Call
+            </button>
+            <button className="md:hidden text-white/70" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+              {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <section className="relative z-10 pt-48 pb-20 px-6 min-h-[85vh] flex flex-col justify-center">
+        <div className="max-w-7xl mx-auto text-center">
+          <FadeIn delay={100} direction="down">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm font-medium text-purple-200 mb-8 hover:bg-white/10 transition-colors cursor-default">
+              <Sparkles size={14} className="text-purple-400 animate-pulse" />
+              <span>Accepting new partners for Q1 2026</span>
+            </div>
+          </FadeIn>
+          
+          <div className="overflow-hidden">
+            <h1 className="text-6xl md:text-[7rem] font-bold tracking-tighter leading-[0.95] mb-8 text-glow">
+              <FadeIn delay={200}>Design that</FadeIn>
+              <FadeIn delay={300}>
+                actually <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400 italic font-serif pr-2">works.</span>
+              </FadeIn>
+            </h1>
+          </div>
+          
+          <FadeIn delay={500}>
+            <p className="max-w-2xl mx-auto text-xl text-white/60 leading-relaxed mb-12 font-light">
+              We help teams make confident product decisions — and ship products that scale. No design theatrics. No handoff chaos. Just thoughtful decisions and strong execution.
+            </p>
+          </FadeIn>
+          
+          <FadeIn delay={700}>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <ShinyButton icon={ArrowRight} onClick={() => { setPrefillMessage(''); setIsFormOpen(true); }}>
+                Book a Discovery Call
+              </ShinyButton>
+            </div>
+          </FadeIn>
+        </div>
+      </section>
+
+      {/* Client Marquee Section */}
+      <div className="relative w-full overflow-hidden bg-white/[0.02] border-y border-white/[0.05] py-8 z-20">
+        <div className="flex gap-16 animate-marquee whitespace-nowrap opacity-60">
+          {[
+            'SIDF', 'Netflix', 'SonyLIV', 'Tata Digital', 'ICICI Prudential', 
+            'Kotak Mahindra Bank', 'Bajaj', 'Qualcomm', 'Fibe', 'Vayana', 'Times Internet',
+            'SIDF', 'Netflix', 'SonyLIV', 'Tata Digital', 'ICICI Prudential',
+            'Kotak Mahindra Bank', 'Bajaj', 'Qualcomm', 'Fibe', 'Vayana', 'Times Internet'
+          ].map((brand, i) => (
+            <span key={i} className={`text-xl font-bold tracking-tight ${brand === 'SIDF' ? 'text-white' : 'text-white/60'}`}>
+              {brand}
+            </span>
+          ))}
+        </div>
+        <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-[#050505] to-transparent z-10" />
+        <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-[#050505] to-transparent z-10" />
+      </div>
+
+      {/* Our Story / Intro */}
+      <section id="story" className="py-24 px-6 relative z-10">
+        <div className="max-w-4xl mx-auto text-center">
+          <FadeIn>
+            <p className="text-2xl md:text-3xl font-light leading-relaxed text-white/80">
+              We are a senior-led product design and frontend team working with founders and product leaders across <span className="text-white font-medium border-b border-purple-500/50 inline-block hover:text-purple-300 transition-colors cursor-default">India and global markets</span>. Our focus is simple: remove ambiguity early, align design with engineering, and deliver products that are clear, usable, and ready to grow.
+            </p>
+          </FadeIn>
+        </div>
+      </section>
+
+      {/* The Problem */}
+      <section id="problem" className="py-24 px-6 bg-white/[0.02]">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-16 md:text-center max-w-3xl mx-auto">
+            <FadeIn>
+              <h2 className="text-3xl md:text-5xl font-bold tracking-tighter mb-6">The problem we solve</h2>
+              <p className="text-lg text-white/60">The real issue is not design quality — it is <span className="text-white font-semibold">decision quality</span>. We help teams move from uncertainty to clarity before time and budget are lost.</p>
+            </FadeIn>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { title: "Decision Paralysis", desc: "Too many design options lead to delayed or emotional decisions.", icon: Layout },
+              { title: "Fragile Polish", desc: "Design looks polished but breaks during development.", icon: Zap },
+              { title: "Agency Overhead", desc: "Agencies introduce overhead and slow feedback cycles.", icon: Users },
+              { title: "Strategic Gaps", desc: "Freelancers execute fast but lack strategic depth and continuity.", icon: Search },
+            ].map((card, i) => (
+              <FadeIn key={i} delay={i * 100}>
+                <SpotlightCard className="p-8 rounded-3xl bg-white/[0.03] border border-white/[0.08] hover:border-white/20 transition-all duration-300 h-full">
+                  <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center mb-6 text-white group-hover:scale-110 transition-transform duration-300">
+                    <card.icon size={24} />
+                  </div>
+                  <h3 className="text-xl font-bold mb-3">{card.title}</h3>
+                  <p className="text-white/50 text-sm leading-relaxed">{card.desc}</p>
+                </SpotlightCard>
+              </FadeIn>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* SOLUTIONS SECTION */}
+      <section id="solutions" className="py-32 px-6 relative z-10">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-20 text-center max-w-3xl mx-auto">
+            <FadeIn>
+              <span className="text-purple-400 font-mono text-sm tracking-wider uppercase mb-4 block">Holistic Solutions</span>
+              <h2 className="text-3xl md:text-5xl font-bold tracking-tighter mb-6">Every step, crafted with care.</h2>
+              <p className="text-lg text-white/60">
+                We don't just hand off files. We own the outcome from the first whiteboard session to the final deploy.
+              </p>
+            </FadeIn>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Strategy Card */}
+            <FadeIn delay={100} className="h-full">
+              <SpotlightCard spotColor="rgba(168, 85, 247, 0.2)" className="group relative p-10 rounded-[2.5rem] bg-gradient-to-b from-white/[0.05] to-transparent border border-white/10 hover:border-purple-500/30 transition-all duration-500 h-full">
+                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity duration-500 transform group-hover:scale-110 group-hover:rotate-12">
+                  <Lightbulb size={120} strokeWidth={1} />
+                </div>
+                <div className="relative z-10">
+                  <div className="w-14 h-14 rounded-2xl bg-purple-500/10 flex items-center justify-center mb-8 text-purple-400 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_15px_rgba(168, 85, 247, 0.2)]">
+                    <Lightbulb size={28} />
+                  </div>
+                  <h3 className="text-2xl font-bold mb-2">Strategy</h3>
+                  <p className="text-white/50 text-sm mb-8 h-10">A brainy mix of ingredients for ideation. Recommended for the thinkers.</p>
+                  
+                  <div className="space-y-4 border-t border-white/5 pt-8">
+                    <span className="text-xs font-bold uppercase tracking-widest text-white/30">Includes</span>
+                    <ul className="space-y-3">
+                      {['UX Audit', 'User Research', 'Product Workshop', 'Design Thinking'].map((item, i) => (
+                        <li key={i} className="flex items-center gap-3 text-sm text-white/80 group/item hover:translate-x-1 transition-transform">
+                          <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </SpotlightCard>
+            </FadeIn>
+
+            {/* Design Card */}
+            <FadeIn delay={200} className="h-full">
+              <SpotlightCard spotColor="rgba(59, 130, 246, 0.2)" className="group relative p-10 rounded-[2.5rem] bg-gradient-to-b from-white/[0.05] to-transparent border border-white/10 hover:border-blue-500/30 transition-all duration-500 h-full">
+                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity duration-500 transform group-hover:scale-110 group-hover:rotate-12">
+                  <Palette size={120} strokeWidth={1} />
+                </div>
+                <div className="relative z-10">
+                  <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center mb-8 text-blue-400 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_15px_rgba(59, 130, 246, 0.2)]">
+                    <Palette size={28} />
+                  </div>
+                  <h3 className="text-2xl font-bold mb-2">Design</h3>
+                  <p className="text-white/50 text-sm mb-8 h-10">A colorful potion to get creative juices flowing. Recommended for the dreamers.</p>
+                  
+                  <div className="space-y-4 border-t border-white/5 pt-8">
+                    <span className="text-xs font-bold uppercase tracking-widest text-white/30">Includes</span>
+                    <ul className="space-y-3">
+                      {['UI/UX Design', 'Design Systems', 'Visual Identity', 'Prototyping'].map((item, i) => (
+                        <li key={i} className="flex items-center gap-3 text-sm text-white/80 group/item hover:translate-x-1 transition-transform">
+                          <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </SpotlightCard>
+            </FadeIn>
+
+            {/* Development Card */}
+            <FadeIn delay={300} className="h-full">
+              <SpotlightCard spotColor="rgba(34, 197, 94, 0.2)" className="group relative p-10 rounded-[2.5rem] bg-gradient-to-b from-white/[0.05] to-transparent border border-white/10 hover:border-green-500/30 transition-all duration-500 h-full">
+                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity duration-500 transform group-hover:scale-110 group-hover:rotate-12">
+                  <Terminal size={120} strokeWidth={1} />
+                </div>
+                <div className="relative z-10">
+                  <div className="w-14 h-14 rounded-2xl bg-green-500/10 flex items-center justify-center mb-8 text-green-400 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_15px_rgba(34, 197, 94, 0.2)]">
+                    <Terminal size={28} />
+                  </div>
+                  <h3 className="text-2xl font-bold mb-2">Engineering</h3>
+                  <p className="text-white/50 text-sm mb-8 h-10">An electric mix that adds zing to your system. Recommended for the builders.</p>
+                  
+                  <div className="space-y-4 border-t border-white/5 pt-8">
+                    <span className="text-xs font-bold uppercase tracking-widest text-white/30">Includes</span>
+                    <ul className="space-y-3">
+                      {['React / Next.js', 'Frontend Architecture', 'Web Performance', 'Scalable Code'].map((item, i) => (
+                        <li key={i} className="flex items-center gap-3 text-sm text-white/80 group/item hover:translate-x-1 transition-transform">
+                          <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </SpotlightCard>
+            </FadeIn>
+          </div>
+        </div>
+      </section>
+
+      {/* Selected Work Section */}
+      <section id="work" className="py-32 px-6 bg-white/[0.02]">
+         <div className="max-w-7xl mx-auto">
+            <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-4">
+              <FadeIn>
+                <span className="text-purple-400 font-mono text-sm tracking-wider uppercase mb-4 block">Selected Work</span>
+                <h2 className="text-3xl md:text-5xl font-bold tracking-tighter">Impact delivered.</h2>
+              </FadeIn>
+              <FadeIn delay={200}>
+                <p className="text-white/60 max-w-sm text-right md:text-left">
+                  Real problems solved for real businesses. Click any project to see the breakdown.
+                </p>
+              </FadeIn>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+               {caseStudies.map((study, i) => (
+                 <FadeIn key={study.id} delay={i * 150} className="h-full">
+                    <div 
+                      onClick={() => setSelectedCaseStudy(study)}
+                      className="group cursor-pointer relative h-full rounded-[2.5rem] bg-white/[0.02] border border-white/5 overflow-hidden hover:border-white/20 transition-all duration-500 hover:-translate-y-2"
+                    >
+                      <div className={`h-48 w-full bg-gradient-to-br ${study.color} p-8 flex items-center justify-center relative overflow-hidden`}>
+                         <div className="absolute inset-0 bg-noise opacity-20" />
+                         <div className="relative z-10 transform group-hover:scale-110 transition-transform duration-500 text-white/90">
+                            {study.icon}
+                         </div>
+                         <div className="absolute bottom-4 right-4 bg-black/30 backdrop-blur-md px-3 py-1 rounded-full text-xs font-medium text-white/80 opacity-0 group-hover:opacity-100 transition-opacity translate-y-2 group-hover:translate-y-0">
+                           View Case Study
+                         </div>
+                      </div>
+                      <div className="p-8">
+                        <div className="flex justify-between items-start mb-4">
+                           <span className="text-xs font-bold uppercase tracking-widest text-white/40">{study.client}</span>
+                           <ArrowRight size={16} className="text-white/20 group-hover:text-white group-hover:translate-x-1 transition-all" />
+                        </div>
+                        <h3 className="text-xl font-bold mb-2 group-hover:text-purple-400 transition-colors">{study.title}</h3>
+                        <p className="text-sm text-white/50">{study.category}</p>
+                      </div>
+                    </div>
+                 </FadeIn>
+               ))}
+            </div>
+         </div>
+      </section>
+
+      {/* Philosophy */}
+      <section className="py-32 px-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+            <FadeIn direction="right">
+              <div>
+                <span className="text-purple-400 font-mono text-sm tracking-wider uppercase mb-4 block">Our Philosophy</span>
+                <h2 className="text-4xl md:text-6xl font-bold tracking-tighter leading-tight mb-8">
+                  Design is a <br />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">decision-making</span> <br />
+                  discipline.
+                </h2>
+              </div>
+            </FadeIn>
+            <FadeIn direction="left" delay={200}>
+              <div className="space-y-6">
+                <p className="text-lg text-white/70 leading-relaxed">
+                  We believe great products are the result of clear thinking long before visual execution. Our process prioritizes understanding the problem, the user context, and the technical reality.
+                </p>
+                <ul className="space-y-4">
+                  {[
+                    "One clear direction instead of multiple concepts",
+                    "Decisions grounded in user needs & business goals",
+                    "Design and frontend developed together",
+                    "Senior ownership from discovery through delivery"
+                  ].map((item, i) => (
+                    <li key={i} className="flex items-start gap-3 text-white/80 group hover:text-white transition-colors">
+                      <div className="mt-1 w-5 h-5 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0 text-purple-400 group-hover:bg-purple-500 group-hover:text-white transition-all">
+                        <Check size={12} strokeWidth={3} />
+                      </div>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </FadeIn>
+          </div>
+        </div>
+      </section>
+
+      {/* How We Work / Process */}
+      <section id="process" className="py-32 px-6 bg-[#080808] border-y border-white/5">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-20">
+            <FadeIn>
+              <h2 className="text-3xl md:text-5xl font-bold tracking-tighter mb-4">A structured, senior-led engagement</h2>
+              <p className="text-white/50">From chaos to clarity in three steps.</p>
+            </FadeIn>
+          </div>
+
+          <div className="space-y-8">
+            {/* Step 1 */}
+            <FadeIn>
+              <SpotlightCard className="group p-8 md:p-12 rounded-[2.5rem] bg-white/[0.02] border border-white/5 hover:border-purple-500/30 transition-colors">
+                <div className="flex flex-col md:flex-row gap-12">
+                  <div className="md:w-1/3">
+                    <span className="text-6xl font-bold text-white/5 font-mono mb-4 block group-hover:text-purple-500/20 transition-colors">01</span>
+                    <h3 className="text-2xl font-bold mb-2 text-white">Foundation Sprint</h3>
+                    <p className="text-purple-400 text-sm font-medium">Before we build</p>
+                  </div>
+                  <div className="md:w-2/3 grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                      <h4 className="font-semibold text-white/90 mb-3">What we do</h4>
+                      <ul className="space-y-2 text-sm text-white/50">
+                        <li>• Clarify product goals and success criteria</li>
+                        <li>• Identify core users and key use cases</li>
+                        <li>• Define core UX flows & technical constraints</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-white/90 mb-3">Outcome</h4>
+                      <p className="text-sm text-white/50 leading-relaxed">
+                        Shared clarity and confidence on what to build — and what not to build. A roadmap grounded in reality.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </SpotlightCard>
+            </FadeIn>
+
+            {/* Step 2 */}
+            <FadeIn delay={100}>
+              <SpotlightCard spotColor="rgba(59, 130, 246, 0.15)" className="group p-8 md:p-12 rounded-[2.5rem] bg-white/[0.02] border border-white/5 hover:border-blue-500/30 transition-colors">
+                <div className="flex flex-col md:flex-row gap-12">
+                  <div className="md:w-1/3">
+                    <span className="text-6xl font-bold text-white/5 font-mono mb-4 block group-hover:text-blue-500/20 transition-colors">02</span>
+                    <h3 className="text-2xl font-bold mb-2 text-white">Design + Execution</h3>
+                    <p className="text-blue-400 text-sm font-medium">Focused build</p>
+                  </div>
+                  <div className="md:w-2/3 grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                      <h4 className="font-semibold text-white/90 mb-3">What we do</h4>
+                      <ul className="space-y-2 text-sm text-white/50">
+                        <li>• Design a single, well-reasoned direction</li>
+                        <li>• Build scalable component-based UI systems</li>
+                        <li>• Develop frontend-ready interfaces</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-white/90 mb-3">Outcome</h4>
+                      <p className="text-sm text-white/50 leading-relaxed">
+                        A shippable product experience that translates cleanly from design to code. No "unbuildable" mockups.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </SpotlightCard>
+            </FadeIn>
+
+            {/* Step 3 */}
+            <FadeIn delay={200}>
+              <SpotlightCard spotColor="rgba(34, 197, 94, 0.15)" className="group p-8 md:p-12 rounded-[2.5rem] bg-white/[0.02] border border-white/5 hover:border-green-500/30 transition-colors">
+                <div className="flex flex-col md:flex-row gap-12">
+                  <div className="md:w-1/3">
+                    <span className="text-6xl font-bold text-white/5 font-mono mb-4 block group-hover:text-green-500/20 transition-colors">03</span>
+                    <h3 className="text-2xl font-bold mb-2 text-white">Iterate & Scale</h3>
+                    <p className="text-green-400 text-sm font-medium">Continuous growth</p>
+                  </div>
+                  <div className="md:w-2/3 grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                      <h4 className="font-semibold text-white/90 mb-3">What we do</h4>
+                      <ul className="space-y-2 text-sm text-white/50">
+                        <li>• Usability testing and validation</li>
+                        <li>• UX metrics definition & refinement</li>
+                        <li>• Accessibility and performance tuning</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-white/90 mb-3">Outcome</h4>
+                      <p className="text-sm text-white/50 leading-relaxed">
+                        A product that evolves with your users and business needs. Long-term support for growth.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </SpotlightCard>
+            </FadeIn>
+          </div>
+        </div>
+      </section>
+
+      {/* Team Hierarchy Section */}
+      <section id="team" className="py-32 px-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-24 text-center max-w-3xl mx-auto">
+            <FadeIn>
+              <span className="text-blue-400 font-mono text-sm tracking-wider uppercase mb-4 block">Our Structure</span>
+              <h2 className="text-3xl md:text-5xl font-bold tracking-tighter mb-6">A senior-led squad, built for you.</h2>
+              <p className="text-lg text-white/60">
+                Direct access to experience. No account managers, no juniors learning on your dime. Just a dedicated squad focused on your product.
+              </p>
+            </FadeIn>
+          </div>
+
+          <div className="relative flex flex-col items-center max-w-4xl mx-auto">
+            <FadeIn className="z-20">
+              <div className="flex flex-col items-center">
+                <div className="w-48 py-3 rounded-full border border-dashed border-white/20 bg-white/5 text-center mb-2">
+                  <span className="text-sm font-bold text-white/50 uppercase tracking-widest">Client Lead</span>
+                </div>
+                <div className="h-16 w-px bg-gradient-to-b from-white/20 to-purple-500/50" />
+              </div>
+            </FadeIn>
+
+            <FadeIn delay={100} className="z-20 w-full max-w-md">
+              <div className="relative p-1 rounded-2xl bg-gradient-to-b from-purple-500/50 to-purple-900/10 shadow-[0_0_40px_rgba(168, 85, 247, 0.2)]">
+                <div className="px-8 py-8 rounded-[0.9rem] bg-[#0A0A0A] text-center relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-purple-500 to-transparent opacity-50" />
+                  <div className="w-16 h-16 mx-auto bg-purple-500/20 rounded-2xl flex items-center justify-center text-purple-400 mb-4 border border-purple-500/20">
+                    <UserCircle size={32} />
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2">Lead Product Designer</h3>
+                  <p className="text-sm text-white/60 mb-4">10+ Years Experience</p>
+                  
+                  <div className="flex flex-wrap justify-center gap-2 mb-6">
+                     {['Strategy', 'Direction', 'Management'].map((tag, i) => (
+                        <span key={i} className="px-3 py-1 rounded-full bg-white/5 text-[10px] font-bold uppercase tracking-wider text-white/70 border border-white/5">{tag}</span>
+                      ))}
+                  </div>
+
+                  <div className="inline-block px-4 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-xs font-bold uppercase tracking-wider text-purple-400">
+                    Primary Point of Contact
+                  </div>
+                </div>
+              </div>
+            </FadeIn>
+
+            <div className="h-12 w-px bg-purple-500/20" />
+            <div className="w-[60%] h-px bg-white/10 relative">
+               <div className="absolute left-0 top-0 h-8 w-px bg-white/10" />
+               <div className="absolute right-0 top-0 h-8 w-px bg-white/10" />
+            </div>
+
+            <div className="flex flex-col md:flex-row justify-center gap-6 w-full mt-8 mb-12">
+              <FadeIn delay={200} className="flex-1 max-w-sm">
+                <div className="p-8 rounded-3xl border border-white/10 bg-white/[0.02] text-center hover:border-green-500/30 transition-all duration-300 h-full">
+                   <div className="w-12 h-12 mx-auto bg-green-500/10 rounded-xl flex items-center justify-center text-green-400 mb-4 border border-green-500/10">
+                    <Terminal size={24} />
+                   </div>
+                   <h4 className="font-bold text-lg text-white mb-1">Senior Frontend</h4>
+                   <p className="text-sm text-white/50 mb-4">7+ Years Experience</p>
+                   <div className="flex flex-wrap justify-center gap-2">
+                      {['Architecture', 'React', 'Performance'].map((tag, i) => (
+                        <span key={i} className="px-2 py-1 rounded-md bg-white/5 text-[10px] font-medium text-white/60 border border-white/5">{tag}</span>
+                      ))}
+                    </div>
+                </div>
+              </FadeIn>
+              
+              <FadeIn delay={300} className="flex-1 max-w-sm">
+                 <div className="p-8 rounded-3xl border border-white/10 bg-white/[0.02] text-center hover:border-blue-500/30 transition-all duration-300 h-full">
+                   <div className="w-12 h-12 mx-auto bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-400 mb-4 border border-blue-500/10">
+                    <Palette size={24} />
+                   </div>
+                   <h4 className="font-bold text-lg text-white mb-1">Visual Designer</h4>
+                   <p className="text-sm text-white/50 mb-4">5+ Years Experience</p>
+                   <div className="flex flex-wrap justify-center gap-2">
+                      {['UI Polish', 'Motion', 'Systems'].map((tag, i) => (
+                        <span key={i} className="px-2 py-1 rounded-md bg-white/5 text-[10px] font-medium text-white/60 border border-white/5">{tag}</span>
+                      ))}
+                    </div>
+                </div>
+              </FadeIn>
+            </div>
+            
+            <FadeIn delay={400}>
+              <p className="text-white/30 text-xs md:text-sm text-center max-w-2xl font-medium border-t border-white/5 pt-6">
+                <span className="text-white/50">* Note:</span> These are your first line of leaders. Additional resources (Research, Motion, QA) are aligned as per project scope.
+              </p>
+            </FadeIn>
+          </div>
+        </div>
+      </section>
+
+      {/* Services Grid */}
+      <section id="services" className="py-32 px-6">
+        <div className="max-w-7xl mx-auto">
+          <FadeIn>
+            <h2 className="text-3xl md:text-5xl font-bold tracking-tighter mb-12 text-center">Services</h2>
+          </FadeIn>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { icon: Search, title: "Foundation Sprint", items: ["Product framing", "User journeys", "Feature prioritization", "Tech feasibility"], color: "purple", accent: "text-purple-400", bg: "bg-purple-500/10", border: "group-hover:border-purple-500/50", dot: "bg-purple-500" },
+              { icon: Layers, title: "Product Design", items: ["UX and UI design", "Design systems", "Interaction design", "Prototyping"], color: "blue", accent: "text-blue-400", bg: "bg-blue-500/10", border: "group-hover:border-blue-500/50", dot: "bg-blue-500" },
+              { icon: Code2, title: "Frontend Dev", items: ["React / Next.js", "Design–eng alignment", "Performance builds", "Scale-ready code"], color: "green", accent: "text-green-400", bg: "bg-green-500/10", border: "group-hover:border-green-500/50", dot: "bg-green-500" },
+              { icon: RefreshCw, title: "Ongoing Support", items: ["Iteration & optimising", "Testing and QA", "Long-term partnership", "UX Metrics"], color: "pink", accent: "text-pink-400", bg: "bg-pink-500/10", border: "group-hover:border-pink-500/50", dot: "bg-pink-500" }
+            ].map((service, i) => (
+              <FadeIn key={i} delay={i * 100} className="h-full">
+                <SpotlightCard spotColor={service.color === 'purple' ? "rgba(168, 85, 247, 0.15)" : service.color === 'blue' ? "rgba(59, 130, 246, 0.15)" : service.color === 'green' ? "rgba(34, 197, 94, 0.15)" : "rgba(236, 72, 153, 0.15)"} className={`group p-8 rounded-[2rem] bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all duration-500 h-full flex flex-col ${service.border}`}>
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 transition-all duration-500 group-hover:scale-110 group-hover:rotate-3 border border-white/5 ${service.bg} ${service.accent}`}>
+                    <service.icon size={28} strokeWidth={1.5} />
+                  </div>
+                  <h3 className="text-xl font-bold mb-4 text-white group-hover:translate-x-1 transition-transform">{service.title}</h3>
+                  <div className="h-px w-8 bg-gradient-to-r from-white/20 to-transparent mb-6 group-hover:w-full transition-all duration-700 ease-out" />
+                  <ul className="space-y-3 mt-auto">
+                    {service.items.map((item, j) => (
+                      <li key={j} className="text-sm text-white/50 flex items-start gap-3 group-hover:text-white/70 transition-colors">
+                        <div className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 opacity-50 group-hover:opacity-100 transition-opacity ${service.dot}`} />
+                        <span className="leading-snug">{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </SpotlightCard>
+              </FadeIn>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Ecosystem Section */}
+      <section id="ecosystem" className="py-32 px-6 border-t border-white/5 bg-white/[0.01]">
+        <div className="max-w-7xl mx-auto">
+          <FadeIn className="text-center mb-16">
+             <span className="text-purple-400 font-mono text-sm tracking-wider uppercase mb-4 block">Ecosystem</span>
+             <h2 className="text-3xl md:text-5xl font-bold tracking-tighter mb-4">Who we build best with.</h2>
+             <p className="text-white/50 text-lg max-w-2xl mx-auto">We partner with high-velocity teams that value thoughtful execution and strategic product thinking.</p>
+          </FadeIn>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 md:gap-6 mb-16">
+             {[
+               { icon: Rocket, title: "Founders", meta: "Early Stage" },
+               { icon: Users, title: "Startup Teams", meta: "Series A+" },
+               { icon: Target, title: "Product Leaders", meta: "Strategic" },
+               { icon: Layers, title: "SaaS Orgs", meta: "Platform" },
+               { icon: Workflow, title: "Internal Tools", meta: "Efficiency" }
+             ].map((partner, i) => (
+               <FadeIn key={i} delay={i * 100}>
+                 <SpotlightCard className="group p-8 rounded-3xl bg-white/[0.03] border border-white/[0.08] hover:border-white/20 transition-all duration-500 h-full text-center">
+                    <div className="w-12 h-12 mx-auto rounded-2xl bg-white/5 flex items-center justify-center mb-6 text-white/40 group-hover:text-purple-400 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500">
+                      <partner.icon size={24} strokeWidth={1.5} />
+                    </div>
+                    <h4 className="text-sm md:text-base font-bold text-white mb-1 group-hover:translate-y-[-2px] transition-transform">{partner.title}</h4>
+                    <p className="text-[10px] uppercase tracking-widest font-bold text-white/20 group-hover:text-white/40 transition-colors">{partner.meta}</p>
+                 </SpotlightCard>
+               </FadeIn>
+             ))}
+          </div>
+          <FadeIn delay={500}>
+            <div className="max-w-3xl mx-auto p-4 md:p-1 rounded-full bg-white/[0.03] border border-white/10 flex flex-col md:flex-row items-center gap-4 text-center md:text-left transition-colors hover:border-white/20 group">
+               <div className="shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-400 md:ml-1 group-hover:bg-purple-500 group-hover:text-black transition-all">
+                  <Globe size={18} />
+               </div>
+               <p className="text-xs md:text-sm text-white/50 font-medium px-4 py-2 md:py-0">
+                  Whether you are based in <span className="text-white">India</span> or <span className="text-white">working globally</span>, our senior-led squad adapts seamlessly to distributed workflows and diverse timezones.
+               </p>
+            </div>
+          </FadeIn>
+        </div>
+      </section>
+
+      {/* Testimonial Section */}
+      <section className="py-32 px-6 border-y border-white/5 relative overflow-hidden">
+        <div className="max-w-4xl mx-auto text-center relative z-10">
+          <FadeIn>
+            <div className="mb-10 text-purple-400 opacity-50 flex justify-center"><Quote size={64} className="transform rotate-180" /></div>
+            <h3 className="text-2xl md:text-4xl font-serif italic text-white/90 leading-relaxed mb-10 tracking-wide">
+              "Working with this team felt like adding an experienced product partner, not hiring a vendor. The early clarity helped us move faster and avoid costly rework."
+            </h3>
+            <div className="flex flex-col items-center justify-center gap-4">
+              <div className="group relative w-16 h-16 rounded-full overflow-hidden border-2 border-white/10 shadow-xl">
+                 <img src="https://media.licdn.com/dms/image/v2/C5603AQHP4Uq-tH8H2A/profile-displayphoto-shrink_200_200/profile-displayphoto-shrink_200_200/0/1516248386182?e=2147483647&v=beta&t=7l3lQy1WlOq-1r1r1r1r1r1r1r1r1r1r1r1r1r1r1r1" alt="Abdulaziz Aljameel" className="w-full h-full object-cover grayscale group-hover:grayscale-0 group-hover:scale-110 transition-all" />
+              </div>
+              <div className="text-center">
+                <div className="font-bold text-lg text-white">Abdulaziz Aljameel</div>
+                <div className="text-sm text-white/50 font-medium">Lead Solution Architect, SIDF</div>
+              </div>
+            </div>
+          </FadeIn>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="py-12 px-6 border-t border-white/10 bg-[#020202]">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
+          <div className="flex items-center gap-3 group">
+            <div className="w-8 h-8 bg-white rounded-sm rotate-45 shrink-0 transition-transform group-hover:rotate-[225deg]" />
+            <div className="flex flex-col">
+              <span className="font-bold text-xl tracking-tight leading-none text-white">LISCO</span>
+              <span className="text-[0.6rem] font-medium tracking-wide text-white/50 uppercase leading-none mt-1 group-hover:text-white transition-colors">Product × Engineering Partner</span>
+            </div>
+          </div>
+          <div className="flex gap-8 text-sm text-white/40">
+            <a href="#" className="hover:text-white transition-colors">Twitter</a>
+            <a href="#" className="hover:text-white transition-colors">LinkedIn</a>
+            <a href="#" className="hover:text-white transition-colors">Email</a>
+          </div>
+          <div className="text-white/20 text-sm">© 2026 LISCO.</div>
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+export default App;
